@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Berlin Snake — Printable Cards</title>
+<style>
+  :root {
+    --easy: #2e7d32;
+    --medium: #ed6c02;
+    --hard: #c62828;
+    --curse: #6a1b9a;
+    --power: #1565c0;
+    --ink: #1a1a1a;
+    --paper: #fefefe;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 12mm;
+    background: #e9e9e9;
+    color: var(--ink);
+  }
+  .toolbar {
+    position: sticky;
+    top: 0;
+    background: #222;
+    color: white;
+    padding: 8px 12px;
+    margin: -12mm -12mm 12mm -12mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+  }
+  .toolbar h1 { margin: 0; font-size: 14px; font-weight: 500; }
+  .toolbar button {
+    background: white; color: #222; border: 0; padding: 6px 14px;
+    border-radius: 4px; font-size: 13px; cursor: pointer;
+  }
+  .section-heading {
+    font-size: 18px;
+    margin: 10mm 0 4mm 0;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .sheet {
+    background: var(--paper);
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto 8mm auto;
+    padding: 10mm;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 4mm;
+    page-break-after: always;
+  }
+  .card {
+    border: 1.5px solid var(--ink);
+    border-radius: 4mm;
+    padding: 5mm;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper);
+    position: relative;
+    overflow: hidden;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3mm;
+    padding-bottom: 2mm;
+    border-bottom: 1px solid #ccc;
+  }
+  .card-type {
+    font-size: 9pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .card-points {
+    font-size: 9pt;
+    font-weight: 700;
+    padding: 1mm 2mm;
+    border-radius: 2mm;
+    color: white;
+  }
+  .card-title {
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 2mm 0 3mm 0;
+    line-height: 1.15;
+  }
+  .card-body {
+    font-size: 8.5pt;
+    line-height: 1.35;
+    flex: 1;
+  }
+  .card-footer {
+    font-size: 7pt;
+    text-align: right;
+    color: #888;
+    margin-top: auto;
+    padding-top: 2mm;
+    font-style: italic;
+  }
+  .easy .card-type, .easy .card-points { color: white; }
+  .easy .card-points { background: var(--easy); }
+  .easy { border-color: var(--easy); }
+  .easy .card-type { color: var(--easy); }
+  .medium .card-points { background: var(--medium); }
+  .medium { border-color: var(--medium); }
+  .medium .card-type { color: var(--medium); }
+  .hard .card-points { background: var(--hard); }
+  .hard { border-color: var(--hard); }
+  .hard .card-type { color: var(--hard); }
+  .curse .card-points { background: var(--curse); }
+  .curse { border-color: var(--curse); background: #f5eff8; }
+  .curse .card-type { color: var(--curse); }
+  .power .card-points { background: var(--power); color: white; }
+  .power { border-color: var(--power); background: #eef5fc; }
+  .power .card-type { color: var(--power); }
+  .snake-ornament {
+    position: absolute;
+    bottom: 3mm;
+    left: 3mm;
+    font-size: 18pt;
+    opacity: 0.06;
+    pointer-events: none;
+  }
+  @media print {
+    body { background: white; padding: 0; }
+    .toolbar { display: none; }
+    .section-heading { display: none; }
+    .sheet {
+      box-shadow: none;
+      margin: 0;
+      page-break-after: always;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>BERLIN SNAKE — Printable Card Decks (A4, 3×3 per sheet)</h1>
+  <button onclick="window.print()">Print all sheets</button>
+</div>
+
+<h2 class="section-heading">Challenge cards · Easy (1pt)</h2>
+<div class="sheet" id="sheet-easy-1"></div>
+<div class="sheet" id="sheet-easy-2"></div>
+<div class="sheet" id="sheet-easy-3"></div>
+
+<h2 class="section-heading">Challenge cards · Medium (2pt)</h2>
+<div class="sheet" id="sheet-medium-1"></div>
+<div class="sheet" id="sheet-medium-2"></div>
+
+<h2 class="section-heading">Challenge cards · Hard (3pt)</h2>
+<div class="sheet" id="sheet-hard-1"></div>
+
+<h2 class="section-heading">Curse cards (Hunter)</h2>
+<div class="sheet" id="sheet-curse-1"></div>
+<div class="sheet" id="sheet-curse-2"></div>
+<div class="sheet" id="sheet-curse-3"></div>
+
+<h2 class="section-heading">Power cards (Runner)</h2>
+<div class="sheet" id="sheet-power-1"></div>
+
+<script>
+const DECK = {
+  easy: [
+    { t: "STATION SELFIE", b: "Photograph yourself with the station name sign clearly visible behind you." },
+    { t: "U-BAHN PORTRAIT", b: "Photograph the architectural detail of the station that you find most distinctive — a tile, a column, a mosaic." },
+    { t: "THE SPÄTI RUN", b: "Walk to the nearest Späti. Photograph the storefront. Buy nothing — just observe." },
+    { t: "LINE GUARDIAN", b: "Photograph the line color stripe with at least two line designations visible (e.g., U2, S5)." },
+    { t: "THE LIST", b: "Note the next 3 outbound destinations shown on the platform display. Type them into the app." },
+    { t: "THE EXIT", b: "Leave via a different exit than you entered. Photograph the street sign of the road you emerge onto." },
+    { t: "THE WAIT", b: "Watch one train arrive and depart without boarding. Photograph it as it leaves." },
+    { t: "THE TICKET", b: "Photograph the BVG ticket vending machine at this station." },
+    { t: "THE SCHEDULE", b: "Find a printed timetable for any line and photograph it." },
+    { t: "THE BIN", b: "Find the nearest public trash bin outside the station. Photograph it." },
+    { t: "THE BIKE", b: "Photograph a Berlin-style cargo bike or three bikes locked together." },
+    { t: "THE GRAFFITI", b: "Photograph a piece of graffiti or street art within 100m of the station." },
+    { t: "THE TREE", b: "Find a tree within 50m of the station entrance. Photograph it with the station entrance in the same frame." },
+    { t: "THE DOORBELL", b: "Photograph a building's intercom panel (Klingelschild). Bonus if it has 20+ buttons." },
+    { t: "THE MAILBOX", b: "Find a yellow Deutsche Post mailbox. Photograph it." },
+    { t: "THE BIER", b: "Photograph a beer advertisement (Berliner, Schultheiss, Augustiner) on any surface." },
+    { t: "THE WINDOW", b: "Photograph an interesting window — laundry, plants, a cat, an old sign." },
+    { t: "THE WALK SIGN", b: "Photograph the Ampelmann (the East Berlin walking-figure signal)." },
+    { t: "THE WURST", b: "Find any establishment selling currywurst within 200m. Photograph the sign." },
+    { t: "THE CHURCH", b: "Locate any church tower or spire visible from the station. Photograph it." },
+    { t: "THE NUMBER 42", b: "Find a building numbered 42 within sight of the station. Photograph it." },
+    { t: "THE LANGUAGE", b: "Photograph a sign in a language other than German or English." },
+    { t: "THE TIME", b: "Photograph any visible public clock. Note the time in the app." },
+    { t: "THE COLOR", b: "Photograph three things matching the line color of this station." }
+  ],
+  medium: [
+    { t: "STRANGER'S TIP", b: "Ask one stranger near the station for a restaurant recommendation. Photograph the place's exterior." },
+    { t: "FIVE-MINUTE BENCH", b: "Find a public bench within 300m. Sit on it 5 full minutes. Photograph the view from your seat." },
+    { t: "STOLPERSTEIN", b: "Locate a Stolperstein (brass cobblestone memorial). Photograph it." },
+    { t: "THE MURAL", b: "Find a piece of street art at least 2m tall. Photograph it fully." },
+    { t: "SOUVENIR HUNT", b: "Find a souvenir shop or kiosk. Photograph the most absurd Berlin-branded item." },
+    { t: "THE WATER", b: "Find any body of water — fountain, canal, puddle, river — within 400m. Photograph it." },
+    { t: "THE CROSSING", b: "Cross the largest road near the station. Photograph the station from the opposite side." },
+    { t: "THE ORDER", b: "Order a beverage from the nearest café in German. Photograph the cup or receipt." },
+    { t: "BUILDING NUMBER", b: "Photograph a house number matching this station's line number (e.g., 7 at a U7 station)." },
+    { t: "TRANSIT MAP", b: "Find a paper U/S-Bahn map (in the station or a train). Photograph it." },
+    { t: "THE BOOK", b: "Find a bookshop, library, or Bücherschrank (outdoor mini-library). Photograph the books." },
+    { t: "BIKE LANE", b: "Stand on a bike lane (carefully). Photograph your feet on it. Survive." },
+    { t: "THE PIGEON", b: "Photograph a single pigeon doing anything interesting." },
+    { t: "THE BIG SIGN", b: "Find a neon or large illuminated sign within 300m. Photograph it." },
+    { t: "THE BAKERY", b: "Find a Bäckerei. Photograph the pastry display." },
+    { t: "PARK ENTRY", b: "Find the nearest park/green-space entrance. Photograph the sign or gate." }
+  ],
+  hard: [
+    { t: "FIVE MINUTES OUT", b: "Walk in any direction for 5 minutes. Photograph where you ended up with a recognizable landmark. Walk back." },
+    { t: "STRANGER'S STORY", b: "Find someone willing to share one sentence about why they like/dislike this neighborhood. Note their answer in the app. No photos of them." },
+    { t: "LOCAL FOOD", b: "Buy and eat one item costing under €4 from a vendor within 5 minutes of the station. Photograph it before eating." },
+    { t: "GHOST STATION", b: "Without using your phone for navigation, find your way back to the station from 200m away. Photograph yourself at the entrance." },
+    { t: "LANGUAGE EXCHANGE", b: "Compliment someone in German (dog, jacket, bike). Note what you said in the app." },
+    { t: "COMPLETE LOOP", b: "Walk around the block. Photograph the station entrance from each side (or as many as exist)." },
+    { t: "COLD WAR CHECK", b: "Find physical evidence of the divided city — Wall remnant, memorial, East/West architectural contrast. Photograph it." },
+    { t: "THE NAME GAME", b: "Research the person/place this station is named after using only signs inside. Type a one-sentence summary in the app." }
+  ],
+  curse: [
+    { t: "CURSE OF THE BEAR", b: "The Runner's next 3 claims must each be on a different U-Bahn line." },
+    { t: "CURSE OF THE CURRYWURST", b: "Eat a snack at the next station before claiming (+15 min minimum)." },
+    { t: "CURSE OF THE TOURIST", b: "Take a selfie with a (consenting) stranger at each of the next 2 stations." },
+    { t: "CURSE OF THE SLOWPOKE", b: "No S-Bahn for the next 30 minutes." },
+    { t: "CURSE OF THE WALL", b: "The next claim must be East of the former Wall (Hunter chooses East or West)." },
+    { t: "CURSE OF THE LOOP", b: "The next claim must be on the Ringbahn (S41/S42)." },
+    { t: "CURSE OF THE ECHO", b: "For 60 minutes, location pings fire every 20 minutes instead of 30." },
+    { t: "CURSE OF THE STAIRMASTER", b: "At the next station, exit and re-enter via stairs. No escalators. Photograph the stairs." },
+    { t: "CURSE OF THE POLITE GUEST", b: "Next 2 challenges must include conversation with at least one stranger." },
+    { t: "CURSE OF THE COIN", b: "Flip a coin. Heads: next claim must be North of you. Tails: South." },
+    { t: "CURSE OF THE LONG WAY", b: "Skip the next direct adjacent. Next claim must be 2+ stops away (does not consume Leap)." },
+    { t: "CURSE OF THE STREETCAR", b: "One of the next 3 claims must include a tram (M-line) photo, or the claim is void." },
+    { t: "CURSE OF THE SILENT TYPE", b: "For 30 minutes, no phone routing. Paper map or memory only." },
+    { t: "CURSE OF THE EXPENSIVE TASTE", b: "Buy something costing more than €5 at the next claim." },
+    { t: "CURSE OF THE PHOTOGRAPHER", b: "The next claim's proof must be a video, not a photo." },
+    { t: "CURSE OF THE GHOST", b: "The next claim must be a former Geisterbahnhof (ghost station of the divided city)." },
+    { t: "CURSE OF THE EARLY BIRD", b: "Sing one verse of any song aloud at the next station. Audio-record into the app." },
+    { t: "CURSE OF THE LINGUIST", b: "The next claim's challenge must be transacted in German only." },
+    { t: "CURSE OF THE PARK", b: "The next claim must be within 200m of a park entrance." },
+    { t: "CURSE OF THE TWIN", b: "Visit a station and another on the same line — claim only one. Hunter picks which." }
+  ],
+  power: [
+    { t: "LEAP", b: "Skip one station. Next claim may be 2 stops away on the same line. The intermediate station does not join your tail. Still requires a challenge at the destination." },
+    { t: "VEIL", b: "For 60 minutes, no Skin-Shed ping is sent to the Hunters. Your head station is hidden. Hunters know VEIL is active." },
+    { t: "SHED", b: "Drop the last 3 stations from your tail. They re-open. You lose their points. Cannot be used in the first 30 minutes." }
+  ]
+};
+
+function makeCard(type, points, title, body, ornament="◯") {
+  const cls = type.toLowerCase();
+  const typeLabel = type === "EASY" || type === "MEDIUM" || type === "HARD"
+    ? `${type} CHALLENGE` : type;
+  const pointsLabel = (type === "CURSE" || type === "POWER")
+    ? type : `${points} PT`;
+  return `
+    <div class="card ${cls}">
+      <div class="card-header">
+        <span class="card-type">${typeLabel}</span>
+        <span class="card-points">${pointsLabel}</span>
+      </div>
+      <h3 class="card-title">${title}</h3>
+      <div class="card-body">${body}</div>
+      <div class="card-footer">Berlin Snake</div>
+      <div class="snake-ornament">${ornament}</div>
+    </div>
+  `;
+}
+
+function fillSheets(deckKey, sheetIds, type, points, ornament) {
+  const cards = DECK[deckKey];
+  let idx = 0;
+  for (const sheetId of sheetIds) {
+    const el = document.getElementById(sheetId);
+    if (!el) continue;
+    let html = "";
+    for (let i = 0; i < 9 && idx < cards.length; i++, idx++) {
+      const c = cards[idx];
+      html += makeCard(type, points, c.t, c.b, ornament);
+    }
+    // pad with empty cards so the grid sizing stays
+    const used = (idx % 9) || 9;
+    if (idx >= cards.length) {
+      for (let i = used; i < 9; i++) {
+        html += `<div class="card" style="border:1px dashed #ddd;"></div>`;
+      }
+    }
+    el.innerHTML = html;
+  }
+}
+
+fillSheets("easy",   ["sheet-easy-1","sheet-easy-2","sheet-easy-3"], "EASY", 1, "🟢");
+fillSheets("medium", ["sheet-medium-1","sheet-medium-2"],            "MEDIUM", 2, "🟠");
+fillSheets("hard",   ["sheet-hard-1"],                                "HARD", 3, "🔴");
+fillSheets("curse",  ["sheet-curse-1","sheet-curse-2","sheet-curse-3"],"CURSE", 0, "🐍");
+fillSheets("power",  ["sheet-power-1"],                                "POWER", 0, "⚡");
+</script>
+
+</body>
+</html>

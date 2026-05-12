@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Berlin Snake</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1f2630;
+    --border: #2a313c;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #7DAD4C;
+    --runner: #58c860;
+    --hunter: #ff5252;
+    --head: #ffd54a;
+    --curse: #b366ff;
+    --warning: #ff9c40;
+    --u1: #7DAD4C; --u2: #DA421E; --u3: #16B2B5; --u4: #F0D722; --u5: #7E5330;
+    --u6: #8C6DAB; --u7: #528DBA; --u8: #224F86; --u9: #F3791D; --ring: #C73C2E;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+  }
+  body { display: flex; flex-direction: column; }
+
+  /* HEADER */
+  header {
+    height: 56px; min-height: 56px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 16px;
+  }
+  .logo { font-weight: 800; letter-spacing: 1px; font-size: 16px; }
+  .logo .snake { color: var(--runner); }
+  .role-toggle {
+    display: flex; background: var(--panel-2); border-radius: 6px;
+    padding: 2px; gap: 2px;
+  }
+  .role-toggle button {
+    background: transparent; color: var(--text-dim); border: 0;
+    padding: 6px 14px; border-radius: 4px; cursor: pointer;
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+  }
+  .role-toggle button.active.runner { background: var(--runner); color: #0d1117; }
+  .role-toggle button.active.hunter { background: var(--hunter); color: #0d1117; }
+  .timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 18px; font-weight: 700;
+    margin-left: auto;
+    padding: 6px 12px; background: var(--panel-2); border-radius: 6px;
+  }
+  .timer.warning { color: var(--warning); }
+  .timer.danger { color: var(--hunter); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: 0.6; } }
+  .header-btn {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;
+  }
+  .header-btn:hover { border-color: var(--accent); }
+
+  /* MAIN LAYOUT */
+  main { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+  aside.sidebar {
+    width: 320px; min-width: 320px;
+    background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  #map { flex: 1; background: #1a1a1a; }
+
+  /* SIDEBAR PANELS */
+  .panel { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .panel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+              color: var(--text-dim); margin: 0 0 10px 0; font-weight: 600; }
+  .stat-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .stat-row .label { color: var(--text-dim); font-size: 12px; }
+  .stat-row .value { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .big-stat { font-size: 32px; font-weight: 800; line-height: 1; }
+  .big-stat .unit { font-size: 12px; font-weight: 400; color: var(--text-dim); margin-left: 4px; }
+  .head-station {
+    margin-top: 6px;
+    padding: 8px 10px; background: rgba(255, 213, 74, 0.08);
+    border-left: 3px solid var(--head); border-radius: 0 4px 4px 0;
+    font-size: 13px;
+  }
+  .head-station .small { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .head-station .name { font-weight: 700; margin-top: 2px; }
+
+  /* ACTIONS */
+  .action-btn {
+    display: block; width: 100%;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    padding: 10px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    cursor: pointer; margin-bottom: 8px; text-align: left;
+    transition: all 0.15s;
+  }
+  .action-btn:hover { border-color: var(--accent); background: #232a36; }
+  .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .action-btn .hint { display: block; font-size: 11px; color: var(--text-dim); font-weight: 400; margin-top: 2px; }
+  .action-btn.primary {
+    background: var(--runner); color: #0d1117; border-color: var(--runner);
+  }
+  .action-btn.primary:hover { background: #6dd170; }
+  .action-btn.danger {
+    background: var(--hunter); color: #0d1117; border-color: var(--hunter);
+  }
+  .action-btn.curse { background: var(--curse); color: white; border-color: var(--curse); }
+
+  /* LOG */
+  .log {
+    max-height: 240px; overflow-y: auto;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    padding: 8px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; line-height: 1.5;
+  }
+  .log-entry { margin-bottom: 4px; }
+  .log-entry .time { color: var(--text-dim); margin-right: 6px; }
+  .log-entry.event-claim { color: var(--runner); }
+  .log-entry.event-curse { color: var(--curse); }
+  .log-entry.event-ping { color: var(--head); }
+  .log-entry.event-power { color: var(--warning); }
+  .log-entry.event-warn { color: var(--hunter); }
+
+  /* MODAL */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center; z-index: 5000;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--panel); border-radius: 10px;
+    max-width: 480px; width: calc(100% - 32px);
+    border: 1px solid var(--border); overflow: hidden;
+    max-height: 88vh; display: flex; flex-direction: column;
+  }
+  .modal-header {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-header h3 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+  .modal-close { background: none; border: 0; color: var(--text-dim); font-size: 22px; cursor: pointer; }
+  .modal-body { padding: 20px; overflow-y: auto; }
+  .modal-footer { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* CARD INSIDE MODAL */
+  .card-display {
+    border-radius: 10px; padding: 22px;
+    background: linear-gradient(160deg, #1c2230, #0d1117);
+    border: 2px solid var(--accent); position: relative;
+  }
+  .card-display.easy { border-color: #58c860; }
+  .card-display.medium { border-color: #ff9c40; }
+  .card-display.hard { border-color: #ff5252; }
+  .card-display.curse { border-color: var(--curse); }
+  .card-display.power { border-color: var(--head); }
+  .card-tag {
+    display: inline-block; padding: 3px 8px; border-radius: 3px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 12px;
+  }
+  .easy .card-tag { background: #58c860; color: #0d1117; }
+  .medium .card-tag { background: #ff9c40; color: #0d1117; }
+  .hard .card-tag { background: #ff5252; color: #0d1117; }
+  .curse .card-tag { background: var(--curse); color: white; }
+  .power .card-tag { background: var(--head); color: #0d1117; }
+  .card-title { font-size: 22px; font-weight: 800; margin: 0 0 14px 0; line-height: 1.15; }
+  .card-body { font-size: 14px; line-height: 1.5; color: var(--text); }
+
+  /* STATION LIST IN MODAL */
+  .station-list { list-style: none; padding: 0; margin: 0; }
+  .station-list li {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 5px;
+    margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; transition: border-color 0.1s;
+  }
+  .station-list li:hover { border-color: var(--accent); }
+  .station-list li.tail { opacity: 0.5; cursor: not-allowed; }
+  .station-list li.head { border-color: var(--head); }
+  .station-list .badges { display: flex; gap: 3px; }
+  .line-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 18px; border-radius: 3px;
+    font-size: 10px; font-weight: 800; color: white;
+  }
+  .line-U1 { background: var(--u1); color: #0d1117; }
+  .line-U2 { background: var(--u2); }
+  .line-U3 { background: var(--u3); color: #0d1117; }
+  .line-U4 { background: var(--u4); color: #0d1117; }
+  .line-U5 { background: var(--u5); }
+  .line-U6 { background: var(--u6); }
+  .line-U7 { background: var(--u7); }
+  .line-U8 { background: var(--u8); }
+  .line-U9 { background: var(--u9); }
+  .line-S41, .line-S42 { background: var(--ring); }
+
+  /* CLOCK CHIP IN MAP */
+  .pings-list { font-family: ui-monospace, monospace; font-size: 12px; max-height: 120px; overflow-y: auto; }
+  .pings-list .ping { color: var(--head); margin-bottom: 2px; }
+  .pings-list .curse { color: var(--curse); margin-bottom: 2px; }
+  .powers-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .powers-row button {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 4px; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .powers-row button:not(:disabled):hover { border-color: var(--head); color: var(--head); }
+  .powers-row button:disabled { opacity: 0.3; text-decoration: line-through; cursor: not-allowed; }
+
+  /* INFO BAR */
+  .info { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+  .setup-overlay {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+  }
+  .setup-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 32px; max-width: 480px; width: calc(100% - 32px);
+  }
+  .setup-card h1 { margin: 0 0 8px 0; font-size: 28px; }
+  .setup-card h1 .snake { color: var(--runner); }
+  .setup-card p { color: var(--text-dim); line-height: 1.5; }
+  .setup-card label { display: block; margin-top: 16px; font-size: 12px;
+                      text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+  .setup-card input, .setup-card select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 10px; border-radius: 6px; margin-top: 6px;
+    font-size: 14px;
+  }
+  .setup-card button {
+    width: 100%; margin-top: 24px;
+    background: var(--runner); color: #0d1117; border: 0;
+    padding: 14px; font-weight: 700; font-size: 14px; border-radius: 8px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .setup-card button:hover { filter: brightness(1.1); }
+  .setup-card .secondary {
+    background: var(--panel-2); color: var(--text); margin-top: 8px;
+  }
+
+  /* MAP MARKERS — BVG-inspired dots */
+  .marker-dot {
+    border-radius: 50%;
+    background: white;
+    border: 2.5px solid var(--line-color, #888);
+    box-shadow: 0 1px 5px rgba(0,0,0,0.8);
+    cursor: pointer;
+    transition: transform 0.12s;
+  }
+  .marker-dot:hover { transform: scale(1.7); }
+  .marker-dot.interchange {
+    background: #1a2030;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2.5px var(--line-color, #aaa), 0 2px 8px rgba(0,0,0,0.8);
+  }
+  .marker-dot.tail {
+    background: var(--runner) !important;
+    border-color: #0a3b13 !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.6) !important;
+  }
+  .marker-dot.head {
+    background: var(--head) !important;
+    border-color: rgba(255,213,74,0.6) !important;
+    transform: scale(2.1) !important;
+    animation: head-pulse 2s infinite;
+    z-index: 9999 !important;
+  }
+  @keyframes head-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(255,213,74,0.2), 0 0 10px rgba(255,213,74,0.6); }
+    50%       { box-shadow: 0 0 0 6px rgba(255,213,74,0.1), 0 0 22px rgba(255,213,74,0.8); }
+  }
+  .marker-dot.start {
+    background: white !important;
+    border: 3px solid var(--accent) !important;
+    box-shadow: 0 0 10px var(--accent) !important;
+  }
+  /* BVG-style line name badges drawn on the map */
+  .map-line-badge {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+    padding: 3px 7px; border-radius: 4px;
+    color: white; pointer-events: none;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.8);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    white-space: nowrap; display: inline-block;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .station-label {
+    background: rgba(13, 17, 23, 0.85);
+    color: var(--text); padding: 2px 6px; border-radius: 3px;
+    font-size: 11px; white-space: nowrap; border: 1px solid var(--border);
+  }
+
+  /* MOBILE */
+  @media (max-width: 768px) {
+    aside.sidebar { width: 100%; max-height: 45vh; }
+    main { flex-direction: column; }
+    aside.sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div class="setup-overlay" id="setup-overlay">
+  <div class="setup-card">
+    <h1>BERLIN <span class="snake">SNAKE</span></h1>
+    <p>Jet Lag–style real-life chase across Berlin's U-Bahn and S-Bahn network. Set the parameters below to start a new game, or resume the last one.</p>
+
+    <label for="setup-duration">Game length (minutes)</label>
+    <input type="number" id="setup-duration" value="240" min="60" max="600" />
+
+    <label for="setup-target">Snake length to win</label>
+    <input type="number" id="setup-target" value="15" min="5" max="50" />
+
+    <label for="setup-start">Starting station</label>
+    <select id="setup-start"></select>
+
+    <label for="setup-role">Your role on this device</label>
+    <select id="setup-role">
+      <option value="runner">Runner (the Snake)</option>
+      <option value="hunter">Hunter</option>
+    </select>
+
+    <button id="setup-start-btn">Start new game</button>
+    <button class="secondary" id="setup-resume-btn" style="display:none;">Resume existing game</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">🐍 BERLIN <span class="snake">SNAKE</span></div>
+  <div class="role-toggle">
+    <button id="role-runner" class="active runner">Runner</button>
+    <button id="role-hunter" class="hunter">Hunter</button>
+  </div>
+  <div class="timer" id="timer">04:00:00</div>
+  <button class="header-btn" id="btn-pause">Pause</button>
+  <button class="header-btn" id="btn-reset">End game</button>
+</header>
+
+<!-- MAIN -->
+<main>
+  <aside class="sidebar">
+
+    <!-- STATS -->
+    <div class="panel">
+      <h2>Snake Status</h2>
+      <div class="big-stat"><span id="snake-length">0</span><span class="unit">stations</span></div>
+      <div class="stat-row" style="margin-top:6px;">
+        <span class="label">Challenge points</span>
+        <span class="value" id="challenge-points">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="label">Target to win</span>
+        <span class="value" id="target-display">15</span>
+      </div>
+      <div class="head-station" id="head-station">
+        <div class="small">Current head</div>
+        <div class="name">—</div>
+      </div>
+    </div>
+
+    <!-- RUNNER ACTIONS -->
+    <div class="panel" id="runner-panel">
+      <h2>Runner Actions</h2>
+      <button class="action-btn primary" id="btn-claim">
+        Claim a station
+        <span class="hint">Pick an adjacent station and complete the challenge</span>
+      </button>
+      <button class="action-btn" id="btn-redraw">
+        Re-roll current challenge
+        <span class="hint">For testing — costs 1 challenge point</span>
+      </button>
+
+      <h2 style="margin-top:14px;">Powers (one of each)</h2>
+      <div class="powers-row">
+        <button id="power-leap">⤴ Leap</button>
+        <button id="power-veil">🌫 Veil</button>
+        <button id="power-shed">🐍 Shed</button>
+      </div>
+    </div>
+
+    <!-- HUNTER ACTIONS -->
+    <div class="panel" id="hunter-panel" style="display:none;">
+      <h2>Hunter Actions</h2>
+      <button class="action-btn curse" id="btn-curse">
+        Throw a curse
+        <span class="hint" id="curse-cooldown">Available now</span>
+      </button>
+      <button class="action-btn danger" id="btn-tag">
+        Tag the Runner
+        <span class="hint">Confirm physical tag — ends the game</span>
+      </button>
+      <button class="action-btn" id="btn-reveal">
+        Reveal tail (once per game)
+        <span class="hint">Force the Runner to expose their snake</span>
+      </button>
+    </div>
+
+    <!-- CADENCE -->
+    <div class="panel">
+      <h2>Cadence</h2>
+      <div class="stat-row">
+        <span class="label">Next ping</span>
+        <span class="value" id="next-ping">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="label">Next curse window</span>
+        <span class="value" id="next-curse">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="label">VEIL active</span>
+        <span class="value" id="veil-status">no</span>
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="panel">
+      <h2>Game Log</h2>
+      <div class="log" id="log"></div>
+    </div>
+
+    <!-- INFO -->
+    <div class="panel">
+      <div class="info">
+        <strong>Adjacency:</strong> two stations are adjacent if a single U-Bahn or S-Bahn line connects them with no stops between. Network data is approximate — refer to BVG in case of ambiguity. <br><br>
+        <strong>Tip:</strong> click a station on the map to claim it (Runner) or inspect it (Hunter). The Runner cannot enter tail stations.
+      </div>
+    </div>
+
+  </aside>
+
+  <div id="map"></div>
+</main>
+
+<!-- MODAL -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Card</h3>
+      <button class="modal-close" id="modal-close">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+/*
+ * BERLIN SNAKE — game logic
+ * Single-file companion app for the Jet Lag-inspired Berlin chase game.
+ *
+ * Coordinate data is approximate (within ~200m for most stations).
+ * Refine to taste — the player uses BVG in real life; the map is a tracker.
+ */
+
+// ─────────────────────────────────────────────────────────────────────
+// STATION & LINE DATA
+// Each line is an ordered list of [name, lat, lng]. Adjacency is derived.
+// ─────────────────────────────────────────────────────────────────────
+const LINE_DATA = {
+  U1: { color: "#7DAD4C", stops: [
+    ["Uhlandstraße", 52.5036, 13.3268],
+    ["Kurfürstendamm", 52.5036, 13.3324],
+    ["Wittenbergplatz", 52.5018, 13.3431],
+    ["Nollendorfplatz", 52.4995, 13.3535],
+    ["Kurfürstenstraße", 52.4983, 13.3622],
+    ["Gleisdreieck", 52.4988, 13.3741],
+    ["Möckernbrücke", 52.4980, 13.3826],
+    ["Hallesches Tor", 52.4979, 13.3917],
+    ["Prinzenstraße", 52.4995, 13.4079],
+    ["Kottbusser Tor", 52.4995, 13.4179],
+    ["Görlitzer Bahnhof", 52.4992, 13.4287],
+    ["Schlesisches Tor", 52.5008, 13.4419],
+    ["Warschauer Straße", 52.5054, 13.4496]
+  ]},
+  U2: { color: "#DA421E", stops: [
+    ["Pankow", 52.5687, 13.4101],
+    ["Vinetastraße", 52.5631, 13.4109],
+    ["Schönhauser Allee", 52.5494, 13.4153],
+    ["Eberswalder Straße", 52.5410, 13.4112],
+    ["Senefelderplatz", 52.5341, 13.4124],
+    ["Rosa-Luxemburg-Platz", 52.5275, 13.4116],
+    ["Alexanderplatz", 52.5219, 13.4132],
+    ["Klosterstraße", 52.5172, 13.4124],
+    ["Märkisches Museum", 52.5117, 13.4079],
+    ["Spittelmarkt", 52.5113, 13.4017],
+    ["Hausvogteiplatz", 52.5125, 13.3953],
+    ["Stadtmitte", 52.5113, 13.3886],
+    ["Mohrenstraße", 52.5105, 13.3838],
+    ["Potsdamer Platz", 52.5096, 13.3760],
+    ["Mendelssohn-Bartholdy-Park", 52.5044, 13.3744],
+    ["Gleisdreieck", 52.4988, 13.3741],
+    ["Bülowstraße", 52.4980, 13.3623],
+    ["Nollendorfplatz", 52.4995, 13.3535],
+    ["Wittenbergplatz", 52.5018, 13.3431],
+    ["Zoologischer Garten", 52.5067, 13.3325],
+    ["Ernst-Reuter-Platz", 52.5121, 13.3217],
+    ["Deutsche Oper", 52.5119, 13.3093],
+    ["Bismarckstraße", 52.5117, 13.3030],
+    ["Sophie-Charlotte-Platz", 52.5111, 13.2956],
+    ["Kaiserdamm", 52.5099, 13.2845],
+    ["Theodor-Heuss-Platz", 52.5074, 13.2738],
+    ["Neu-Westend", 52.5104, 13.2602],
+    ["Olympia-Stadion", 52.5167, 13.2502],
+    ["Ruhleben", 52.5258, 13.2384]
+  ]},
+  U3: { color: "#16B2B5", stops: [
+    ["Krumme Lanke", 52.4546, 13.2415],
+    ["Onkel Toms Hütte", 52.4575, 13.2531],
+    ["Oskar-Helene-Heim", 52.4585, 13.2660],
+    ["Thielplatz", 52.4575, 13.2779],
+    ["Dahlem-Dorf", 52.4581, 13.2884],
+    ["Podbielskiallee", 52.4634, 13.2964],
+    ["Breitenbachplatz", 52.4691, 13.3076],
+    ["Rüdesheimer Platz", 52.4789, 13.3162],
+    ["Heidelberger Platz", 52.4805, 13.3231],
+    ["Fehrbelliner Platz", 52.4905, 13.3147],
+    ["Hohenzollernplatz", 52.4937, 13.3253],
+    ["Spichernstraße", 52.4969, 13.3289],
+    ["Augsburger Straße", 52.5018, 13.3351],
+    ["Wittenbergplatz", 52.5018, 13.3431],
+    ["Nollendorfplatz", 52.4995, 13.3535]
+  ]},
+  U4: { color: "#F0D722", stops: [
+    ["Innsbrucker Platz", 52.4783, 13.3469],
+    ["Rathaus Schöneberg", 52.4845, 13.3437],
+    ["Bayerischer Platz", 52.4882, 13.3409],
+    ["Viktoria-Luise-Platz", 52.4945, 13.3406],
+    ["Nollendorfplatz", 52.4995, 13.3535]
+  ]},
+  U5: { color: "#7E5330", stops: [
+    ["Hauptbahnhof", 52.5252, 13.3697],
+    ["Bundestag", 52.5189, 13.3737],
+    ["Brandenburger Tor", 52.5163, 13.3789],
+    ["Unter den Linden", 52.5172, 13.3879],
+    ["Museumsinsel", 52.5188, 13.3996],
+    ["Rotes Rathaus", 52.5195, 13.4084],
+    ["Alexanderplatz", 52.5219, 13.4132],
+    ["Schillingstraße", 52.5232, 13.4253],
+    ["Strausberger Platz", 52.5180, 13.4309],
+    ["Weberwiese", 52.5159, 13.4396],
+    ["Frankfurter Tor", 52.5148, 13.4543],
+    ["Samariterstraße", 52.5159, 13.4651],
+    ["Frankfurter Allee", 52.5152, 13.4760],
+    ["Magdalenenstraße", 52.5142, 13.4843],
+    ["Lichtenberg", 52.5102, 13.4948],
+    ["Friedrichsfelde", 52.5066, 13.5054],
+    ["Tierpark", 52.4998, 13.5276],
+    ["Biesdorf-Süd", 52.4946, 13.5485],
+    ["Elsterwerdaer Platz", 52.5054, 13.5582],
+    ["Wuhletal", 52.5125, 13.5793],
+    ["Kaulsdorf-Nord", 52.5160, 13.5876],
+    ["Kienberg", 52.5258, 13.5870],
+    ["Cottbusser Platz", 52.5326, 13.5854],
+    ["Hellersdorf", 52.5358, 13.6087],
+    ["Louis-Lewin-Straße", 52.5390, 13.6175],
+    ["Hönow", 52.5403, 13.6342]
+  ]},
+  U6: { color: "#8C6DAB", stops: [
+    ["Alt-Tegel", 52.5894, 13.2839],
+    ["Borsigwerke", 52.5853, 13.2885],
+    ["Holzhauser Straße", 52.5811, 13.2961],
+    ["Otisstraße", 52.5779, 13.3019],
+    ["Scharnweberstraße", 52.5712, 13.3098],
+    ["Kurt-Schumacher-Platz", 52.5651, 13.3158],
+    ["Afrikanische Straße", 52.5577, 13.3349],
+    ["Rehberge", 52.5495, 13.3447],
+    ["Seestraße", 52.5430, 13.3537],
+    ["Leopoldplatz", 52.5443, 13.3637],
+    ["Wedding", 52.5429, 13.3681],
+    ["Reinickendorfer Straße", 52.5395, 13.3711],
+    ["Schwartzkopffstraße", 52.5343, 13.3782],
+    ["Naturkundemuseum", 52.5304, 13.3804],
+    ["Oranienburger Tor", 52.5258, 13.3851],
+    ["Friedrichstraße", 52.5202, 13.3873],
+    ["Französische Straße", 52.5141, 13.3895],
+    ["Stadtmitte", 52.5113, 13.3886],
+    ["Kochstraße", 52.5067, 13.3902],
+    ["Hallesches Tor", 52.4979, 13.3917],
+    ["Mehringdamm", 52.4937, 13.3886],
+    ["Platz der Luftbrücke", 52.4839, 13.3866],
+    ["Paradestraße", 52.4737, 13.3850],
+    ["Tempelhof", 52.4691, 13.3854],
+    ["Alt-Tempelhof", 52.4634, 13.3859],
+    ["Kaiserin-Augusta-Straße", 52.4566, 13.3873],
+    ["Ullsteinstraße", 52.4500, 13.3837],
+    ["Westphalweg", 52.4444, 13.3858],
+    ["Alt-Mariendorf", 52.4385, 13.3859]
+  ]},
+  U7: { color: "#528DBA", stops: [
+    ["Rathaus Spandau", 52.5358, 13.1996],
+    ["Altstadt Spandau", 52.5366, 13.2046],
+    ["Zitadelle", 52.5413, 13.2118],
+    ["Haselhorst", 52.5410, 13.2333],
+    ["Paulsternstraße", 52.5360, 13.2496],
+    ["Rohrdamm", 52.5340, 13.2622],
+    ["Siemensdamm", 52.5347, 13.2752],
+    ["Halemweg", 52.5354, 13.2925],
+    ["Jakob-Kaiser-Platz", 52.5363, 13.3007],
+    ["Jungfernheide", 52.5304, 13.2999],
+    ["Mierendorffplatz", 52.5237, 13.3026],
+    ["Richard-Wagner-Platz", 52.5174, 13.3056],
+    ["Bismarckstraße", 52.5117, 13.3030],
+    ["Wilmersdorfer Straße", 52.5070, 13.3066],
+    ["Adenauerplatz", 52.5009, 13.3094],
+    ["Konstanzer Straße", 52.4933, 13.3168],
+    ["Fehrbelliner Platz", 52.4905, 13.3147],
+    ["Blissestraße", 52.4848, 13.3187],
+    ["Berliner Straße", 52.4838, 13.3273],
+    ["Bayerischer Platz", 52.4882, 13.3409],
+    ["Eisenacher Straße", 52.4868, 13.3503],
+    ["Kleistpark", 52.4869, 13.3603],
+    ["Yorckstraße", 52.4906, 13.3722],
+    ["Möckernbrücke", 52.4980, 13.3826],
+    ["Mehringdamm", 52.4937, 13.3886],
+    ["Gneisenaustraße", 52.4925, 13.3998],
+    ["Südstern", 52.4895, 13.4083],
+    ["Hermannplatz", 52.4869, 13.4248],
+    ["Rathaus Neukölln", 52.4814, 13.4350],
+    ["Karl-Marx-Straße", 52.4732, 13.4407],
+    ["Neukölln", 52.4677, 13.4424],
+    ["Grenzallee", 52.4628, 13.4475],
+    ["Blaschkoallee", 52.4534, 13.4477],
+    ["Parchimer Allee", 52.4488, 13.4495],
+    ["Britz-Süd", 52.4435, 13.4490],
+    ["Johannisthaler Chaussee", 52.4346, 13.4561],
+    ["Lipschitzallee", 52.4297, 13.4651],
+    ["Wutzkyallee", 52.4253, 13.4753],
+    ["Zwickauer Damm", 52.4221, 13.4854],
+    ["Rudow", 52.4180, 13.4982]
+  ]},
+  U8: { color: "#224F86", stops: [
+    ["Wittenau", 52.5926, 13.3367],
+    ["Rathaus Reinickendorf", 52.5872, 13.3380],
+    ["Karl-Bonhoeffer-Nervenklinik", 52.5810, 13.3422],
+    ["Lindauer Allee", 52.5757, 13.3454],
+    ["Paracelsus-Bad", 52.5719, 13.3522],
+    ["Residenzstraße", 52.5641, 13.3604],
+    ["Franz-Neumann-Platz", 52.5573, 13.3676],
+    ["Osloer Straße", 52.5550, 13.3791],
+    ["Pankstraße", 52.5483, 13.3852],
+    ["Gesundbrunnen", 52.5485, 13.3892],
+    ["Voltastraße", 52.5413, 13.3927],
+    ["Bernauer Straße", 52.5365, 13.3974],
+    ["Rosenthaler Platz", 52.5290, 13.4019],
+    ["Weinmeisterstraße", 52.5246, 13.4044],
+    ["Alexanderplatz", 52.5219, 13.4132],
+    ["Jannowitzbrücke", 52.5145, 13.4180],
+    ["Heinrich-Heine-Straße", 52.5092, 13.4151],
+    ["Moritzplatz", 52.5037, 13.4108],
+    ["Kottbusser Tor", 52.4995, 13.4179],
+    ["Schönleinstraße", 52.4926, 13.4220],
+    ["Hermannplatz", 52.4869, 13.4248],
+    ["Boddinstraße", 52.4798, 13.4254],
+    ["Leinestraße", 52.4734, 13.4271],
+    ["Hermannstraße", 52.4675, 13.4314]
+  ]},
+  U9: { color: "#F3791D", stops: [
+    ["Osloer Straße", 52.5550, 13.3791],
+    ["Nauener Platz", 52.5489, 13.3711],
+    ["Leopoldplatz", 52.5443, 13.3637],
+    ["Amrumer Straße", 52.5384, 13.3506],
+    ["Westhafen", 52.5354, 13.3433],
+    ["Birkenstraße", 52.5320, 13.3413],
+    ["Turmstraße", 52.5269, 13.3413],
+    ["Hansaplatz", 52.5189, 13.3406],
+    ["Zoologischer Garten", 52.5067, 13.3325],
+    ["Kurfürstendamm", 52.5036, 13.3324],
+    ["Spichernstraße", 52.4969, 13.3289],
+    ["Güntzelstraße", 52.4894, 13.3290],
+    ["Berliner Straße", 52.4838, 13.3273],
+    ["Bundesplatz", 52.4761, 13.3262],
+    ["Friedrich-Wilhelm-Platz", 52.4690, 13.3253],
+    ["Walther-Schreiber-Platz", 52.4625, 13.3242],
+    ["Schloßstraße", 52.4566, 13.3219],
+    ["Rathaus Steglitz", 52.4569, 13.3217]
+  ]},
+  S41: { color: "#C73C2E", stops: [
+    ["Gesundbrunnen", 52.5485, 13.3892],
+    ["Schönhauser Allee", 52.5494, 13.4153],
+    ["Prenzlauer Allee", 52.5407, 13.4258],
+    ["Greifswalder Straße", 52.5343, 13.4359],
+    ["Landsberger Allee", 52.5283, 13.4524],
+    ["Storkower Straße", 52.5208, 13.4640],
+    ["Frankfurter Allee", 52.5152, 13.4760],
+    ["Ostkreuz", 52.5037, 13.4694],
+    ["Treptower Park", 52.4937, 13.4630],
+    ["Sonnenallee", 52.4760, 13.4596],
+    ["Neukölln", 52.4677, 13.4424],
+    ["Hermannstraße", 52.4675, 13.4314],
+    ["Tempelhof", 52.4691, 13.3854],
+    ["Südkreuz", 52.4753, 13.3651],
+    ["Schöneberg", 52.4815, 13.3550],
+    ["Innsbrucker Platz", 52.4783, 13.3469],
+    ["Bundesplatz", 52.4761, 13.3262],
+    ["Heidelberger Platz", 52.4805, 13.3231],
+    ["Hohenzollerndamm", 52.4869, 13.3097],
+    ["Halensee", 52.4972, 13.2974],
+    ["Westkreuz", 52.5012, 13.2837],
+    ["Messe Nord/ICC", 52.5070, 13.2780],
+    ["Westend", 52.5151, 13.2841],
+    ["Jungfernheide", 52.5304, 13.2999],
+    ["Beusselstraße", 52.5357, 13.3204],
+    ["Westhafen", 52.5354, 13.3433],
+    ["Wedding", 52.5429, 13.3681],
+    ["Gesundbrunnen", 52.5485, 13.3892]
+  ]},
+  S42: { color: "#C73C2E", stops: [
+    ["Gesundbrunnen", 52.5485, 13.3892],
+    ["Wedding", 52.5429, 13.3681],
+    ["Westhafen", 52.5354, 13.3433],
+    ["Beusselstraße", 52.5357, 13.3204],
+    ["Jungfernheide", 52.5304, 13.2999],
+    ["Westend", 52.5151, 13.2841],
+    ["Messe Nord/ICC", 52.5070, 13.2780],
+    ["Westkreuz", 52.5012, 13.2837],
+    ["Halensee", 52.4972, 13.2974],
+    ["Hohenzollerndamm", 52.4869, 13.3097],
+    ["Heidelberger Platz", 52.4805, 13.3231],
+    ["Bundesplatz", 52.4761, 13.3262],
+    ["Innsbrucker Platz", 52.4783, 13.3469],
+    ["Schöneberg", 52.4815, 13.3550],
+    ["Südkreuz", 52.4753, 13.3651],
+    ["Tempelhof", 52.4691, 13.3854],
+    ["Hermannstraße", 52.4675, 13.4314],
+    ["Neukölln", 52.4677, 13.4424],
+    ["Sonnenallee", 52.4760, 13.4596],
+    ["Treptower Park", 52.4937, 13.4630],
+    ["Ostkreuz", 52.5037, 13.4694],
+    ["Frankfurter Allee", 52.5152, 13.4760],
+    ["Storkower Straße", 52.5208, 13.4640],
+    ["Landsberger Allee", 52.5283, 13.4524],
+    ["Greifswalder Straße", 52.5343, 13.4359],
+    ["Prenzlauer Allee", 52.5407, 13.4258],
+    ["Schönhauser Allee", 52.5494, 13.4153],
+    ["Gesundbrunnen", 52.5485, 13.3892]
+  ]}
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// BUILD STATION GRAPH
+// ─────────────────────────────────────────────────────────────────────
+const STATIONS = {}; // name -> {lat, lng, lines: Set<string>}
+const ADJACENCY = {}; // name -> Set<string>
+
+function buildGraph() {
+  for (const [lineName, line] of Object.entries(LINE_DATA)) {
+    for (let i = 0; i < line.stops.length; i++) {
+      const [name, lat, lng] = line.stops[i];
+      if (!STATIONS[name]) {
+        STATIONS[name] = { lat, lng, lines: new Set() };
+        ADJACENCY[name] = new Set();
+      }
+      STATIONS[name].lines.add(lineName);
+      if (i > 0) {
+        const prev = line.stops[i - 1][0];
+        if (prev !== name) {
+          ADJACENCY[name].add(prev);
+          ADJACENCY[prev].add(name);
+        }
+      }
+    }
+  }
+}
+buildGraph();
+const STATION_NAMES = Object.keys(STATIONS).sort();
+
+// ─────────────────────────────────────────────────────────────────────
+// CARD DECKS
+// ─────────────────────────────────────────────────────────────────────
+const CARDS = {
+  easy: [
+    { t: "STATION SELFIE", b: "Photograph yourself with the station name sign clearly visible behind you." },
+    { t: "U-BAHN PORTRAIT", b: "Photograph the architectural detail of this station that you find most distinctive — a tile, a column, a mosaic." },
+    { t: "THE SPÄTI RUN", b: "Walk to the nearest Späti. Photograph the storefront. Buy nothing — just observe." },
+    { t: "LINE GUARDIAN", b: "Photograph the line color stripe with at least two line designations visible (e.g., U2, S5)." },
+    { t: "THE LIST", b: "Note the next 3 outbound destinations shown on the platform display." },
+    { t: "THE EXIT", b: "Leave via a different exit than you entered. Photograph the street sign of the road you emerge onto." },
+    { t: "THE WAIT", b: "Watch one train arrive and depart without boarding. Photograph it as it leaves." },
+    { t: "THE TICKET", b: "Photograph the BVG ticket vending machine at this station." },
+    { t: "THE SCHEDULE", b: "Find a printed timetable for any line and photograph it." },
+    { t: "THE BIN", b: "Find the nearest public trash bin outside the station. Photograph it." },
+    { t: "THE BIKE", b: "Photograph a Berlin-style cargo bike or three bikes locked together." },
+    { t: "THE GRAFFITI", b: "Photograph a piece of graffiti or street art within 100m." },
+    { t: "THE TREE", b: "Find a tree within 50m. Photograph it with the station entrance in frame." },
+    { t: "THE DOORBELL", b: "Photograph a building's intercom panel. Bonus if it has 20+ buttons." },
+    { t: "THE MAILBOX", b: "Find a yellow Deutsche Post mailbox. Photograph it." },
+    { t: "THE BIER", b: "Photograph a beer advertisement on any surface." },
+    { t: "THE WINDOW", b: "Photograph an interesting window — laundry, plants, a cat, an old sign." },
+    { t: "THE WALK SIGN", b: "Photograph the Ampelmann (East Berlin walking-figure signal)." },
+    { t: "THE WURST", b: "Find any establishment selling currywurst within 200m. Photograph the sign." },
+    { t: "THE CHURCH", b: "Locate any church tower or spire visible from the station. Photograph it." },
+    { t: "THE NUMBER 42", b: "Find a building numbered 42 within sight. Photograph it." },
+    { t: "THE LANGUAGE", b: "Photograph a sign in a language other than German or English." },
+    { t: "THE TIME", b: "Photograph any visible public clock." },
+    { t: "THE COLOR", b: "Photograph three things matching the line color of this station." }
+  ],
+  medium: [
+    { t: "STRANGER'S TIP", b: "Ask one stranger for a restaurant recommendation in the neighborhood. Photograph the place's exterior." },
+    { t: "FIVE-MINUTE BENCH", b: "Find a public bench within 300m. Sit on it 5 full minutes. Photograph the view." },
+    { t: "STOLPERSTEIN", b: "Locate a Stolperstein (brass cobblestone memorial). Photograph it." },
+    { t: "THE MURAL", b: "Find a piece of street art at least 2m tall. Photograph it fully." },
+    { t: "SOUVENIR HUNT", b: "Find a souvenir shop. Photograph the most absurd Berlin-branded item." },
+    { t: "THE WATER", b: "Find any body of water — fountain, canal, puddle, river — within 400m." },
+    { t: "THE CROSSING", b: "Cross the largest road near the station. Photograph from the opposite side." },
+    { t: "THE ORDER", b: "Order a beverage from the nearest café in German. Photograph the cup or receipt." },
+    { t: "BUILDING NUMBER", b: "Photograph a house number matching this station's line number." },
+    { t: "TRANSIT MAP", b: "Find a paper U/S-Bahn map. Photograph it." },
+    { t: "THE BOOK", b: "Find a bookshop, library, or Bücherschrank. Photograph the books." },
+    { t: "BIKE LANE", b: "Stand on a bike lane (carefully). Photograph your feet. Survive." },
+    { t: "THE PIGEON", b: "Photograph a single pigeon doing anything interesting." },
+    { t: "THE BIG SIGN", b: "Find a neon or large illuminated sign within 300m." },
+    { t: "THE BAKERY", b: "Find a Bäckerei. Photograph the pastry display." },
+    { t: "PARK ENTRY", b: "Find the nearest park entrance. Photograph the sign or gate." }
+  ],
+  hard: [
+    { t: "FIVE MINUTES OUT", b: "Walk in any direction for 5 minutes. Photograph where you end up with a recognizable landmark. Walk back." },
+    { t: "STRANGER'S STORY", b: "Find someone willing to share one sentence about this neighborhood. Note their answer. No photos of them." },
+    { t: "LOCAL FOOD", b: "Buy and eat one item costing under €4 from a vendor within 5 minutes of the station." },
+    { t: "GHOST STATION", b: "Without using your phone for navigation, find your way back from 200m away." },
+    { t: "LANGUAGE EXCHANGE", b: "Compliment someone in German (dog, jacket, bike). Note what you said." },
+    { t: "COMPLETE LOOP", b: "Walk around the block. Photograph the station entrance from each side." },
+    { t: "COLD WAR CHECK", b: "Find physical evidence of the divided city — Wall remnant, memorial, East/West contrast." },
+    { t: "THE NAME GAME", b: "Research the person/place this station is named after using only signs inside." }
+  ],
+  curse: [
+    { t: "CURSE OF THE BEAR", b: "The Runner's next 3 claims must each be on a different U-Bahn line." },
+    { t: "CURSE OF THE CURRYWURST", b: "Eat a snack at the next station before claiming (+15 min minimum)." },
+    { t: "CURSE OF THE TOURIST", b: "Take a selfie with a (consenting) stranger at each of the next 2 stations." },
+    { t: "CURSE OF THE SLOWPOKE", b: "No S-Bahn for the next 30 minutes." },
+    { t: "CURSE OF THE WALL", b: "The next claim must be East (or West, Hunter's choice) of the former Wall." },
+    { t: "CURSE OF THE LOOP", b: "The next claim must be on the Ringbahn (S41/S42)." },
+    { t: "CURSE OF THE ECHO", b: "For 60 minutes, location pings fire every 20 minutes instead of 30." },
+    { t: "CURSE OF THE STAIRMASTER", b: "At the next station, exit and re-enter via stairs. No escalators." },
+    { t: "CURSE OF THE POLITE GUEST", b: "Next 2 challenges must include conversation with at least one stranger." },
+    { t: "CURSE OF THE COIN", b: "Flip a coin. Heads: next claim must be North. Tails: South." },
+    { t: "CURSE OF THE LONG WAY", b: "Skip the next direct adjacent. Next claim must be 2+ stops away (no Leap consumed)." },
+    { t: "CURSE OF THE STREETCAR", b: "One of the next 3 claims must include a tram (M-line) photo." },
+    { t: "CURSE OF THE SILENT TYPE", b: "For 30 minutes, no phone routing. Paper map or memory only." },
+    { t: "CURSE OF THE EXPENSIVE TASTE", b: "Buy something costing more than €5 at the next claim." },
+    { t: "CURSE OF THE PHOTOGRAPHER", b: "The next claim's proof must be a video, not a photo." },
+    { t: "CURSE OF THE GHOST", b: "The next claim must be a former Geisterbahnhof of the divided city." },
+    { t: "CURSE OF THE EARLY BIRD", b: "Sing one verse of any song aloud at the next station." },
+    { t: "CURSE OF THE LINGUIST", b: "The next claim's challenge must be transacted in German only." },
+    { t: "CURSE OF THE PARK", b: "The next claim must be within 200m of a park entrance." },
+    { t: "CURSE OF THE TWIN", b: "Visit a station and another on the same line — claim only one. Hunter picks which." }
+  ]
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────
+const STORAGE_KEY = "berlin-snake-v1";
+
+function defaultState() {
+  return {
+    started: false,
+    role: "runner",
+    startStation: null,
+    tail: [],            // ordered, last entry = head
+    claimedChallenges: [], // [{ station, tier, title, body, pts }]
+    durationMin: 240,
+    targetLength: 15,
+    startMs: Date.now(),
+    paused: false,
+    pausedAccumMs: 0,
+    pausedAtMs: null,
+    pings: [],           // [{ at, station }]
+    cursesUsed: [],      // [{ at, name, body }]
+    pendingChallenge: null,
+    powers: { leap: true, veil: true, shed: true },
+    veilUntilMs: null,
+    revealUsed: false,
+    log: [],
+    gameOver: null
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+let state = defaultState();
+
+// ─────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────
+function nowGame() {
+  // elapsed game time in ms, accounting for pauses
+  let elapsed = Date.now() - state.startMs - state.pausedAccumMs;
+  if (state.paused && state.pausedAtMs) elapsed -= (Date.now() - state.pausedAtMs);
+  return Math.max(0, elapsed);
+}
+function fmtClock(ms) {
+  const total = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+function remainingMs() {
+  return state.durationMin * 60_000 - nowGame();
+}
+function head() { return state.tail.length ? state.tail[state.tail.length - 1] : null; }
+function isInTail(station) { return state.tail.includes(station); }
+function isAdjacent(a, b) {
+  if (!a || !b) return false;
+  return ADJACENCY[a] && ADJACENCY[a].has(b);
+}
+function isTwoStop(a, b) {
+  // returns the intermediate station name if there's a 2-stop path on any line, else null
+  if (!ADJACENCY[a]) return null;
+  for (const mid of ADJACENCY[a]) {
+    if (mid === b || isInTail(mid)) continue;
+    if (ADJACENCY[mid].has(b)) return mid;
+  }
+  return null;
+}
+function totalChallengePoints() {
+  return state.claimedChallenges.reduce((s, c) => s + (c.pts || 0), 0);
+}
+function logEvent(type, message) {
+  state.log = state.log || [];
+  state.log.push({ at: Date.now(), type, message });
+  if (state.log.length > 200) state.log.shift();
+  renderLog();
+  saveState();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// MAP
+// ─────────────────────────────────────────────────────────────────────
+let map, lineLayers = [], stationMarkers = {}, snakePath = null;
+
+function initMap() {
+  map = L.map("map", { zoomControl: true, zoomSnap: 0.5 }).setView([52.515, 13.388], 12);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap, © CARTO'
+  }).addTo(map);
+
+  // Draw order: U-Bahn first, Ring last (on top)
+  const lineEntries = Object.entries(LINE_DATA).sort(([a], [b]) => {
+    const ra = (a === 'S41' || a === 'S42') ? 1 : 0;
+    const rb = (b === 'S41' || b === 'S42') ? 1 : 0;
+    return ra - rb;
+  });
+
+  // Dark halos under every line for visual separation at crossings
+  for (const [lineName, line] of lineEntries) {
+    if (lineName === 'S42') continue;
+    const coords = line.stops.map(s => [s[1], s[2]]);
+    L.polyline(coords, {
+      color: '#060810', weight: 13, opacity: 0.6,
+      lineCap: 'round', lineJoin: 'round', interactive: false
+    }).addTo(map);
+  }
+
+  // Outer glow for the Ringbahn — drawn before the ring line itself
+  const ringCoords = LINE_DATA.S41.stops.map(s => [s[1], s[2]]);
+  L.polyline(ringCoords, {
+    color: '#C73C2E', weight: 22, opacity: 0.12,
+    lineCap: 'round', lineJoin: 'round', interactive: false
+  }).addTo(map);
+  L.polyline(ringCoords, {
+    color: '#C73C2E', weight: 14, opacity: 0.18,
+    lineCap: 'round', lineJoin: 'round', interactive: false
+  }).addTo(map);
+
+  // Draw all lines (skip S42 — same geometry as S41, data only)
+  const usedLabelSlots = new Set();
+  for (const [lineName, line] of lineEntries) {
+    if (lineName === 'S42') continue;
+    const isRing = lineName === 'S41';
+    const coords = line.stops.map(s => [s[1], s[2]]);
+    const poly = L.polyline(coords, {
+      color: line.color,
+      weight: isRing ? 8 : 5,
+      opacity: isRing ? 0.97 : 0.87,
+      lineCap: 'round', lineJoin: 'round'
+    }).addTo(map);
+    poly.bindTooltip(lineName, { permanent: false, direction: 'center' });
+    lineLayers.push(poly);
+
+    // BVG-style line name badge near the midpoint
+    const midIdx = Math.floor(line.stops.length / 2);
+    const [, mlat, mlng] = line.stops[midIdx];
+    const slotKey = `${mlat.toFixed(2)},${mlng.toFixed(2)}`;
+    if (!usedLabelSlots.has(slotKey)) {
+      usedLabelSlots.add(slotKey);
+      const needsDark = line.color === '#F0D722' || line.color === '#16B2B5';
+      L.marker([mlat, mlng], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div class="map-line-badge" style="background:${line.color};${needsDark ? 'color:#0d1117;' : ''}">${lineName}</div>`,
+          iconSize: [36, 20], iconAnchor: [18, 10]
+        }),
+        interactive: false,
+        zIndexOffset: -2000
+      }).addTo(map);
+    }
+  }
+
+  // Station markers — BVG dot style
+  for (const name of STATION_NAMES) {
+    const s = STATIONS[name];
+    const isInterchange = s.lines.size > 1;
+    const primaryColor = LINE_DATA[[...s.lines][0]]?.color || '#888888';
+    const sz = isInterchange ? 13 : 9;
+    const ha = sz / 2;
+
+    const marker = L.marker([s.lat, s.lng], {
+      icon: L.divIcon({
+        className: '',
+        html: `<div class="marker-dot${isInterchange ? ' interchange' : ''}" data-name="${name}" style="--line-color:${primaryColor};width:${sz}px;height:${sz}px;"></div>`,
+        iconSize: [sz, sz],
+        iconAnchor: [ha, ha]
+      }),
+      zIndexOffset: isInterchange ? 300 : 0
+    });
+    const linesHtml = [...s.lines].map(l => `<span class="line-badge line-${l}">${l}</span>`).join(' ');
+    marker.bindTooltip(`<strong>${name}</strong><br>${linesHtml}`, { direction: 'top', offset: [0, -8] });
+    marker.on('click', () => onStationClick(name));
+    marker.addTo(map);
+    stationMarkers[name] = marker;
+  }
+}
+
+function refreshMarkers() {
+  const headName = head();
+  for (const [name, marker] of Object.entries(stationMarkers)) {
+    const el = marker.getElement();
+    if (!el) continue;
+    const dot = el.querySelector('.marker-dot');
+    if (!dot) continue;
+    dot.classList.remove('tail', 'head', 'start');
+    if (name === headName) dot.classList.add('head');
+    else if (isInTail(name)) dot.classList.add('tail');
+    else if (name === state.startStation) dot.classList.add('start');
+  }
+}
+
+function refreshSnakePath() {
+  if (snakePath) { map.removeLayer(snakePath); snakePath = null; }
+  if (!map || state.tail.length < 2) return;
+  const coords = state.tail.map(n => { const s = STATIONS[n]; return [s.lat, s.lng]; });
+  snakePath = L.polyline(coords, {
+    color: '#58c860', weight: 3, opacity: 0.7,
+    lineCap: 'round', lineJoin: 'round', dashArray: '7 5'
+  }).addTo(map);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// CORE GAME ACTIONS
+// ─────────────────────────────────────────────────────────────────────
+function startGame(opts) {
+  state = defaultState();
+  state.started = true;
+  state.role = opts.role || "runner";
+  state.durationMin = opts.duration;
+  state.targetLength = opts.target;
+  state.startStation = opts.start;
+  state.tail = [opts.start];
+  state.startMs = Date.now();
+  state.log = [];
+  logEvent("claim", `Start station claimed: ${opts.start}`);
+  state.claimedChallenges.push({ station: opts.start, tier: "free", title: "Start", body: "Starting station auto-claimed.", pts: 0 });
+  saveState();
+}
+
+function endGame(winner, reason) {
+  state.gameOver = { winner, reason, at: Date.now() };
+  logEvent("warn", `Game over — ${winner.toUpperCase()} wins. ${reason}`);
+  saveState();
+  showModal({
+    title: `Game Over — ${winner === "runner" ? "Runner" : "Hunters"} win`,
+    body: `<div class="card-display ${winner === "runner" ? "easy" : "hard"}">
+             <span class="card-tag">${winner === "runner" ? "VICTORY" : "DEFEAT"}</span>
+             <h2 class="card-title">${winner === "runner" ? "The Snake survives." : "The Snake is caught."}</h2>
+             <p class="card-body">${reason}</p>
+             <p class="card-body" style="margin-top:14px;">
+               Final length: <strong>${state.tail.length}</strong> stations<br>
+               Challenge points: <strong>${totalChallengePoints()}</strong><br>
+               Total score: <strong>${state.tail.length + totalChallengePoints()}</strong>
+             </p>
+           </div>`,
+    actions: [{ label: "New game", primary: true, onClick: () => { localStorage.removeItem(STORAGE_KEY); location.reload(); } }]
+  });
+}
+
+function rollChallengeTier() {
+  const r = Math.floor(Math.random() * 6) + 1;
+  if (r <= 3) return "easy";
+  if (r <= 5) return "medium";
+  return "hard";
+}
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function drawChallenge(forStation, opts={}) {
+  const tier = opts.tier || rollChallengeTier();
+  const pool = CARDS[tier];
+  const card = pickRandom(pool);
+  const pts = tier === "easy" ? 1 : tier === "medium" ? 2 : 3;
+  state.pendingChallenge = { station: forStation, tier, title: card.t, body: card.b, pts };
+  saveState();
+  showChallenge(forStation);
+}
+
+function showChallenge(stationName) {
+  const c = state.pendingChallenge;
+  if (!c) return;
+  const head = stationName || c.station;
+  showModal({
+    title: `Challenge for ${head}`,
+    body: `<div class="card-display ${c.tier}">
+             <span class="card-tag">${c.tier.toUpperCase()} — ${c.pts} POINT${c.pts !== 1 ? "S" : ""}</span>
+             <h2 class="card-title">${c.title}</h2>
+             <p class="card-body">${c.body}</p>
+           </div>
+           <p class="info" style="margin-top:14px;">Complete the challenge at the station, then tap "Claim station" below to add it to your snake.</p>`,
+    actions: [
+      { label: "Re-roll", onClick: () => { state.pendingChallenge = null; drawChallenge(head); } },
+      { label: "Cancel", onClick: closeModal },
+      { label: "Claim station", primary: true, onClick: () => commitClaim(head) }
+    ]
+  });
+}
+
+function commitClaim(stationName) {
+  const c = state.pendingChallenge;
+  if (!c || c.station !== stationName) return;
+  state.tail.push(stationName);
+  state.claimedChallenges.push({ ...c });
+  state.pendingChallenge = null;
+  logEvent("claim", `Claimed ${stationName} — ${c.title} (+${c.pts} pt)`);
+  closeModal();
+  refreshUI();
+  checkWinConditions();
+}
+
+function checkWinConditions() {
+  if (state.gameOver) return;
+  if (remainingMs() <= 0) {
+    if (state.tail.length >= state.targetLength) endGame("runner", `Timer expired with snake of ${state.tail.length} stations.`);
+    else endGame("hunter", `Timer expired with snake of only ${state.tail.length} stations (target: ${state.targetLength}).`);
+    return;
+  }
+  // Check Ouroboros (head adjacent to start)
+  const h = head();
+  if (h && h !== state.startStation && isAdjacent(h, state.startStation) && state.tail.length >= 6) {
+    // Don't auto-trigger — give option
+  }
+  // Box-in detection
+  if (h) {
+    const moves = [...ADJACENCY[h]].filter(s => !isInTail(s));
+    if (moves.length === 0) {
+      const canShed = state.powers.shed && nowGame() > 30 * 60_000 && state.tail.length > 3;
+      if (canShed) {
+        logEvent("warn", `${h}: all adjacent stations are in tail. Use SHED to escape.`);
+      } else {
+        endGame("hunter", `${h} has no legal adjacent stations. Runner is boxed in.`);
+      }
+    }
+  }
+}
+
+// Station click → context-aware action
+function onStationClick(name) {
+  if (!state.started || state.gameOver) return;
+  const h = head();
+  if (state.role === "runner") {
+    if (isInTail(name)) {
+      if (name === state.startStation && state.tail.length >= 6 && isAdjacent(h, name)) {
+        // Ouroboros opportunity
+        showModal({
+          title: "OUROBOROS",
+          body: `<div class="card-display power">
+                   <span class="card-tag">INSTANT VICTORY</span>
+                   <h2 class="card-title">Close the loop?</h2>
+                   <p class="card-body">You're at ${h}, adjacent to your starting station ${name}. Stepping back to the start closes the snake — instant victory regardless of length.</p>
+                 </div>`,
+          actions: [
+            { label: "Not yet", onClick: closeModal },
+            { label: "Close the loop", primary: true, onClick: () => endGame("runner", `Ouroboros — snake closed at ${name} with ${state.tail.length} stations.`) }
+          ]
+        });
+        return;
+      }
+      showModal({
+        title: "Self-collision warning",
+        body: `<div class="card-display hard">
+                 <span class="card-tag">FORBIDDEN</span>
+                 <h2 class="card-title">${name} is in your tail.</h2>
+                 <p class="card-body">Entering this station would end the game. Use SHED if you must escape a corner.</p>
+               </div>`,
+        actions: [{ label: "OK", onClick: closeModal }]
+      });
+      return;
+    }
+    if (!h) return;
+    if (isAdjacent(h, name)) {
+      drawChallenge(name);
+    } else {
+      const mid = isTwoStop(h, name);
+      if (mid && state.powers.leap) {
+        showModal({
+          title: "Not adjacent",
+          body: `<div class="card-display medium">
+                   <span class="card-tag">NON-ADJACENT</span>
+                   <h2 class="card-title">${name} is 2 stops from ${h}.</h2>
+                   <p class="card-body">You can reach it by using your <strong>LEAP</strong> power (skipping ${mid}).</p>
+                 </div>`,
+          actions: [
+            { label: "Cancel", onClick: closeModal },
+            { label: "Use LEAP", primary: true, onClick: () => { state.powers.leap = false; logEvent("power", `LEAP used to reach ${name} (skipping ${mid}).`); drawChallenge(name); } }
+          ]
+        });
+      } else {
+        showModal({
+          title: "Not adjacent",
+          body: `<div class="card-display medium">
+                   <span class="card-tag">INVALID</span>
+                   <h2 class="card-title">${name} is not adjacent to ${h}.</h2>
+                   <p class="card-body">Adjacency means one stop away on a U/S line. Pick a closer station, use LEAP (2 stops), or travel via intermediate claims.</p>
+                 </div>`,
+          actions: [{ label: "OK", onClick: closeModal }]
+        });
+      }
+    }
+  } else {
+    // Hunter: show station info
+    showModal({
+      title: name,
+      body: `<p class="card-body"><strong>Lines:</strong> ${[...STATIONS[name].lines].join(", ")}</p>
+             <p class="card-body" style="margin-top:8px;"><strong>Status:</strong> ${isInTail(name) ? "in Runner's tail" : "open"}</p>
+             <p class="card-body" style="margin-top:8px;"><strong>Adjacent:</strong> ${[...ADJACENCY[name]].slice(0, 6).join(", ")}${ADJACENCY[name].size > 6 ? "…" : ""}</p>`,
+      actions: [{ label: "Close", onClick: closeModal }]
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// HUNTER ACTIONS
+// ─────────────────────────────────────────────────────────────────────
+function nextCurseAt() {
+  if (!state.cursesUsed.length) return state.startMs + 45 * 60_000;
+  return state.cursesUsed[state.cursesUsed.length - 1].at + 45 * 60_000;
+}
+function throwCurse() {
+  const t = nextCurseAt();
+  if (Date.now() < t) {
+    const wait = Math.ceil((t - Date.now()) / 60_000);
+    showModal({
+      title: "Curse cooldown",
+      body: `<p class="card-body">Curses can be thrown every 45 minutes. Next curse available in ${wait} minute(s).</p>`,
+      actions: [{ label: "OK", onClick: closeModal }]
+    });
+    return;
+  }
+  const c = pickRandom(CARDS.curse);
+  state.cursesUsed.push({ at: Date.now(), name: c.t, body: c.b });
+  logEvent("curse", `${c.t} thrown.`);
+  showModal({
+    title: "Curse thrown",
+    body: `<div class="card-display curse">
+             <span class="card-tag">CURSE</span>
+             <h2 class="card-title">${c.t}</h2>
+             <p class="card-body">${c.b}</p>
+           </div>`,
+    actions: [{ label: "OK", onClick: closeModal }]
+  });
+  saveState();
+  refreshUI();
+}
+
+function confirmTag() {
+  showModal({
+    title: "Confirm physical tag",
+    body: `<div class="card-display hard">
+             <span class="card-tag">END GAME</span>
+             <h2 class="card-title">Did a Hunter physically tag the Runner?</h2>
+             <p class="card-body">A tag = a hand on the shoulder. Confirm only if it really happened in person.</p>
+           </div>`,
+    actions: [
+      { label: "Cancel", onClick: closeModal },
+      { label: "Confirm tag", primary: true, onClick: () => endGame("hunter", `Runner physically tagged at ${fmtClock(nowGame())}.`) }
+    ]
+  });
+}
+
+function revealTail() {
+  if (state.revealUsed) {
+    showModal({ title: "Already used", body: `<p class="card-body">Reveal Tail can only be used once per game.</p>`, actions: [{ label: "OK", onClick: closeModal }] });
+    return;
+  }
+  state.revealUsed = true;
+  logEvent("warn", "Hunters revealed the tail.");
+  saveState();
+  const items = state.tail.map((s, i) =>
+    `<li class="${s === head() ? 'head' : 'tail'}"><span>${i + 1}. ${s}</span><span class="badges">${[...STATIONS[s].lines].map(l => `<span class="line-badge line-${l}">${l}</span>`).join('')}</span></li>`).join('');
+  showModal({
+    title: "Runner's full tail",
+    body: `<p class="card-body">The Snake has claimed:</p><ul class="station-list">${items}</ul>`,
+    actions: [{ label: "OK", onClick: closeModal }]
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// POWERS
+// ─────────────────────────────────────────────────────────────────────
+function usePower(name) {
+  if (!state.powers[name]) return;
+  if (name === "veil") {
+    state.powers.veil = false;
+    state.veilUntilMs = Date.now() + 60 * 60_000;
+    logEvent("power", "VEIL activated — no pings for 60 minutes.");
+  } else if (name === "leap") {
+    showModal({
+      title: "LEAP",
+      body: `<p class="card-body">LEAP is consumed automatically when you tap a station 2 stops from your head and confirm. No need to pre-activate.</p>`,
+      actions: [{ label: "OK", onClick: closeModal }]
+    });
+    return;
+  } else if (name === "shed") {
+    if (nowGame() < 30 * 60_000) {
+      showModal({ title: "SHED locked", body: `<p class="card-body">SHED cannot be used during the first 30 minutes.</p>`, actions: [{ label: "OK", onClick: closeModal }] });
+      return;
+    }
+    if (state.tail.length <= 3) {
+      showModal({ title: "Tail too short", body: `<p class="card-body">You need at least 4 stations in your tail to shed.</p>`, actions: [{ label: "OK", onClick: closeModal }] });
+      return;
+    }
+    // Drop the last 3 stations from the tail (including current head). The 4th-from-end becomes the new head.
+    const reopened = state.tail.splice(-3, 3);
+    for (let i = 0; i < 3; i++) {
+      if (state.claimedChallenges.length) state.claimedChallenges.pop();
+    }
+    state.powers.shed = false;
+    logEvent("power", `SHED used: dropped ${reopened.join(", ")}. New head: ${head()}.`);
+    saveState();
+    refreshUI();
+    showModal({
+      title: "SHED complete",
+      body: `<p class="card-body">Dropped <strong>${reopened.join(", ")}</strong>. They re-open for re-entry.</p>
+             <p class="card-body" style="margin-top:8px;">New head: <strong>${head()}</strong>. You may now move on.</p>`,
+      actions: [{ label: "OK", onClick: closeModal }]
+    });
+    return;
+  }
+  saveState();
+  refreshUI();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// PING SCHEDULER
+// ─────────────────────────────────────────────────────────────────────
+function pingIntervalMs() {
+  // Curse of the Echo speeds up pings
+  const echo = state.cursesUsed.some(c =>
+    c.name === "CURSE OF THE ECHO" && (Date.now() - c.at) < 60 * 60_000);
+  return (echo ? 20 : 30) * 60_000;
+}
+function nextPingAt() {
+  // First ping at +30 min into the game (after head start)
+  const interval = pingIntervalMs();
+  if (!state.pings.length) return state.startMs + 30 * 60_000;
+  return state.pings[state.pings.length - 1].at + interval;
+}
+function maybeFirePing() {
+  if (!state.started || state.gameOver) return;
+  if (state.veilUntilMs && Date.now() < state.veilUntilMs) return;
+  if (Date.now() < nextPingAt()) return;
+  const h = head();
+  if (!h) return;
+  state.pings.push({ at: Date.now(), station: h });
+  logEvent("ping", `Skin-Shed ping fired: head at ${h}.`);
+  saveState();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// UI
+// ─────────────────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+
+function showModal({ title, body, actions }) {
+  $("modal-title").textContent = title;
+  $("modal-body").innerHTML = body;
+  const footer = $("modal-footer");
+  footer.innerHTML = "";
+  (actions || []).forEach(a => {
+    const btn = document.createElement("button");
+    btn.className = "action-btn" + (a.primary ? " primary" : "");
+    btn.style.width = "auto";
+    btn.style.margin = "0";
+    btn.textContent = a.label;
+    btn.onclick = a.onClick;
+    footer.appendChild(btn);
+  });
+  $("modal").classList.add("show");
+}
+function closeModal() { $("modal").classList.remove("show"); }
+$("modal-close").onclick = closeModal;
+
+function renderLog() {
+  const log = state.log || [];
+  const html = log.slice(-50).reverse().map(e => {
+    const t = new Date(e.at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return `<div class="log-entry event-${e.type}"><span class="time">${t}</span>${e.message}</div>`;
+  }).join("");
+  const el = $("log");
+  if (el) el.innerHTML = html;
+}
+
+function refreshUI() {
+  $("snake-length").textContent = state.tail.length;
+  $("challenge-points").textContent = totalChallengePoints();
+  $("target-display").textContent = state.targetLength;
+  const h = head();
+  const hs = $("head-station");
+  if (h) {
+    hs.querySelector(".name").textContent = h;
+  } else {
+    hs.querySelector(".name").textContent = "—";
+  }
+  // Powers
+  $("power-leap").disabled = !state.powers.leap;
+  $("power-veil").disabled = !state.powers.veil;
+  $("power-shed").disabled = !state.powers.shed;
+  // VEIL status
+  if (state.veilUntilMs && Date.now() < state.veilUntilMs) {
+    const left = Math.ceil((state.veilUntilMs - Date.now()) / 60_000);
+    $("veil-status").textContent = `${left} min left`;
+  } else $("veil-status").textContent = "no";
+  // Pings
+  const np = nextPingAt() - Date.now();
+  $("next-ping").textContent = np <= 0 ? "now" : fmtClock(np);
+  const nc = nextCurseAt() - Date.now();
+  $("next-curse").textContent = nc <= 0 ? "now" : fmtClock(nc);
+  // Role
+  $("runner-panel").style.display = state.role === "runner" ? "" : "none";
+  $("hunter-panel").style.display = state.role === "hunter" ? "" : "none";
+  $("role-runner").classList.toggle("active", state.role === "runner");
+  $("role-hunter").classList.toggle("active", state.role === "hunter");
+  // Cursor cooldown text
+  const cursor = $("curse-cooldown");
+  if (cursor) cursor.textContent = nc <= 0 ? "Available now" : `Next in ${fmtClock(nc)}`;
+  refreshMarkers();
+  refreshSnakePath();
+}
+
+function tick() {
+  if (!state.started || state.gameOver) return;
+  if (state.paused) return;
+  maybeFirePing();
+  const rm = remainingMs();
+  const t = $("timer");
+  t.textContent = fmtClock(rm);
+  t.classList.toggle("warning", rm < 30 * 60_000 && rm > 5 * 60_000);
+  t.classList.toggle("danger", rm <= 5 * 60_000);
+  refreshUI();
+  if (rm <= 0) {
+    checkWinConditions();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// SETUP & EVENT WIRING
+// ─────────────────────────────────────────────────────────────────────
+function fillStartOptions() {
+  const sel = $("setup-start");
+  sel.innerHTML = STATION_NAMES.map(n => `<option value="${n}">${n}</option>`).join("");
+  // Default to Alexanderplatz if present
+  if (STATIONS["Alexanderplatz"]) sel.value = "Alexanderplatz";
+}
+
+function showSetup() {
+  $("setup-overlay").style.display = "flex";
+  const saved = loadState();
+  $("setup-resume-btn").style.display = saved && saved.started && !saved.gameOver ? "block" : "none";
+}
+function hideSetup() { $("setup-overlay").style.display = "none"; }
+
+$("setup-start-btn").onclick = () => {
+  const duration = parseInt($("setup-duration").value);
+  const target = parseInt($("setup-target").value);
+  const start = $("setup-start").value;
+  const role = $("setup-role").value;
+  startGame({ duration, target, start, role });
+  hideSetup();
+  refreshUI();
+};
+$("setup-resume-btn").onclick = () => {
+  const s = loadState();
+  if (s) {
+    state = s;
+    hideSetup();
+    refreshUI();
+  }
+};
+
+$("role-runner").onclick = () => { state.role = "runner"; saveState(); refreshUI(); };
+$("role-hunter").onclick = () => { state.role = "hunter"; saveState(); refreshUI(); };
+
+$("btn-claim").onclick = () => {
+  const h = head();
+  if (!h) return;
+  const candidates = [...ADJACENCY[h]].filter(s => !isInTail(s));
+  if (candidates.length === 0) {
+    showModal({ title: "Boxed in", body: `<p class="card-body">No adjacent stations are open. Use SHED or accept defeat.</p>`, actions: [{ label: "OK", onClick: closeModal }] });
+    return;
+  }
+  const items = candidates.map(s =>
+    `<li onclick="window.__pickStation('${s.replace(/'/g, "\\'")}')"><span>${s}</span><span class="badges">${[...STATIONS[s].lines].map(l => `<span class="line-badge line-${l}">${l}</span>`).join('')}</span></li>`).join('');
+  showModal({
+    title: "Pick adjacent station to claim",
+    body: `<p class="card-body">From ${h}, you can travel to:</p><ul class="station-list">${items}</ul>`,
+    actions: [{ label: "Cancel", onClick: closeModal }]
+  });
+};
+window.__pickStation = (s) => { closeModal(); drawChallenge(s); };
+
+$("btn-redraw").onclick = () => {
+  if (state.pendingChallenge) {
+    drawChallenge(state.pendingChallenge.station);
+  }
+};
+
+$("power-leap").onclick = () => usePower("leap");
+$("power-veil").onclick = () => usePower("veil");
+$("power-shed").onclick = () => usePower("shed");
+
+$("btn-curse").onclick = throwCurse;
+$("btn-tag").onclick = confirmTag;
+$("btn-reveal").onclick = revealTail;
+
+$("btn-pause").onclick = () => {
+  if (state.paused) {
+    state.pausedAccumMs += (Date.now() - state.pausedAtMs);
+    state.pausedAtMs = null;
+    state.paused = false;
+    $("btn-pause").textContent = "Pause";
+    logEvent("warn", "Game resumed.");
+  } else {
+    state.paused = true;
+    state.pausedAtMs = Date.now();
+    $("btn-pause").textContent = "Resume";
+    logEvent("warn", "Game paused.");
+  }
+  saveState();
+};
+
+$("btn-reset").onclick = () => {
+  if (confirm("End the current game and start over?")) {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────────────────────────────
+window.addEventListener("DOMContentLoaded", () => {
+  fillStartOptions();
+  const saved = loadState();
+  if (saved && saved.started && !saved.gameOver) {
+    state = saved;
+    hideSetup();
+  } else {
+    showSetup();
+  }
+  initMap();
+  refreshUI();
+  renderLog();
+  setInterval(tick, 1000);
+});
+</script>
+
+</body>
+</html>
