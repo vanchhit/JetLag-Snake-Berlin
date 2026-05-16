@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(git -C /Users/vanchhit/Documents/Code/JetLag-Snake-Berlin remote -v)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(gh run *)",
+      "Bash(git -C /Users/vanchhit/Documents/Code/vanchhit.github.io remote -v)",
+      "Bash(git -C /Users/vanchhit/Documents/Code/vanchhit.github.io branch -a)",
+      "Bash(git -C /Users/vanchhit/Documents/Code/vanchhit.github.io status)",
+      "Bash(git -C /Users/vanchhit/Documents/Code/vanchhit.github.io diff HEAD)",
+      "Bash(git -C /Users/vanchhit/Documents/Code/vanchhit.github.io checkout -b feat/jetlag-snake-berlin-page)",
+      "Bash(gh pr create --title 'Fix: Astro 4 render API compatibility for JetLag Snake Berlin page' --body ' *)"
     ]
   }
 }
