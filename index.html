@@ -202,6 +202,8 @@
   .line-U8 { background: var(--u8); }
   .line-U9 { background: var(--u9); }
   .line-S41, .line-S42 { background: var(--ring); }
+  .line-S1 { background: #DA6BA2; }
+  .line-S5 { background: #EF7C00; }
 
   /* CLOCK CHIP IN MAP */
   .pings-list { font-family: ui-monospace, monospace; font-size: 12px; max-height: 120px; overflow-y: auto; }
@@ -394,6 +396,7 @@
     <!-- HUNTER ACTIONS -->
     <div class="panel" id="hunter-panel" style="display:none;">
       <h2>Hunter Actions</h2>
+      <div id="hunter-freeze-bar" style="display:none;padding:8px 10px;background:rgba(255,156,64,0.12);border-left:3px solid var(--warning);border-radius:0 4px 4px 0;margin-bottom:10px;font-size:12px;color:var(--warning);font-weight:700;"></div>
       <button class="action-btn curse" id="btn-curse">
         Throw a curse
         <span class="hint" id="curse-cooldown">Available now</span>
@@ -588,7 +591,7 @@ const LINE_DATA = {
     ["Naturkundemuseum", 52.5304, 13.3804],
     ["Oranienburger Tor", 52.5258, 13.3851],
     ["Friedrichstraße", 52.5202, 13.3873],
-    ["Französische Straße", 52.5141, 13.3895],
+    ["Unter den Linden", 52.5172, 13.3879],
     ["Stadtmitte", 52.5113, 13.3886],
     ["Kochstraße", 52.5067, 13.3902],
     ["Hallesches Tor", 52.4979, 13.3917],
@@ -749,6 +752,34 @@ const LINE_DATA = {
     ["Prenzlauer Allee", 52.5407, 13.4258],
     ["Schönhauser Allee", 52.5494, 13.4153],
     ["Gesundbrunnen", 52.5485, 13.3892]
+  ]},
+  S1: { color: "#DA6BA2", stops: [
+    ["Gesundbrunnen", 52.5485, 13.3892],
+    ["Humboldthain", 52.5440, 13.3838],
+    ["Nordbahnhof", 52.5328, 13.3889],
+    ["Oranienburger Straße", 52.5262, 13.3889],
+    ["Friedrichstraße", 52.5202, 13.3873],
+    ["Brandenburger Tor", 52.5163, 13.3789],
+    ["Potsdamer Platz", 52.5096, 13.3760],
+    ["Yorckstraße", 52.4906, 13.3722],
+    ["Schöneberg", 52.4815, 13.3550],
+    ["Südkreuz", 52.4753, 13.3651]
+  ]},
+  S5: { color: "#EF7C00", stops: [
+    ["Ostkreuz", 52.5037, 13.4694],
+    ["Warschauer Straße", 52.5054, 13.4496],
+    ["Ostbahnhof", 52.5072, 13.4349],
+    ["Jannowitzbrücke", 52.5145, 13.4180],
+    ["Alexanderplatz", 52.5219, 13.4132],
+    ["Hackescher Markt", 52.5230, 13.4026],
+    ["Friedrichstraße", 52.5202, 13.3873],
+    ["Hauptbahnhof", 52.5252, 13.3697],
+    ["Bellevue", 52.5200, 13.3499],
+    ["Tiergarten", 52.5131, 13.3418],
+    ["Zoologischer Garten", 52.5067, 13.3325],
+    ["Savignyplatz", 52.5043, 13.3153],
+    ["Charlottenburg", 52.5049, 13.3021],
+    ["Westkreuz", 52.5012, 13.2837]
   ]}
 };
 
@@ -778,6 +809,50 @@ function buildGraph() {
   }
 }
 buildGraph();
+
+function pointInRing(lat, lng) {
+  const poly = LINE_DATA.S41.stops.slice(0, -1);
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][2], yi = poly[i][1];
+    const xj = poly[j][2], yj = poly[j][1];
+    if (((xi > lng) !== (xj > lng)) && (lat < (yj - yi) * (lng - xi) / (xj - xi) + yi))
+      inside = !inside;
+  }
+  return inside;
+}
+
+function isClaimable(name) {
+  const s = STATIONS[name];
+  if (!s) return false;
+  if ([...s.lines].some(l => l.startsWith('S'))) return true;
+  return pointInRing(s.lat, s.lng);
+}
+
+function isJunction(name) {
+  const lines = [...STATIONS[name].lines];
+  const norm = new Set(lines.map(l => (l === 'U1' || l === 'U3') ? '__U1U3__' : l));
+  return norm.size >= 2;
+}
+
+function isOnRingbahn(name) {
+  const s = STATIONS[name];
+  return s && (s.lines.has('S41') || s.lines.has('S42'));
+}
+
+function isFreezeActive() {
+  return nowGame() < 20 * 60_000;
+}
+
+// Prune U-Bahn stations outside the Ringbahn from the graph entirely
+for (const name of Object.keys(STATIONS)) {
+  if (!isClaimable(name)) {
+    for (const nb of ADJACENCY[name]) ADJACENCY[nb].delete(name);
+    delete ADJACENCY[name];
+    delete STATIONS[name];
+  }
+}
+
 const STATION_NAMES = Object.keys(STATIONS).sort();
 
 // ─────────────────────────────────────────────────────────────────────
@@ -966,14 +1041,26 @@ function initMap() {
     return ra - rb;
   });
 
+  // Split a line's stops into consecutive claimable segments (clips outside-ring U-Bahn)
+  function lineSegments(stops) {
+    const segs = []; let cur = [];
+    for (const [name, lat, lng] of stops) {
+      if (STATIONS[name]) { cur.push([lat, lng]); }
+      else { if (cur.length >= 2) segs.push(cur); cur = []; }
+    }
+    if (cur.length >= 2) segs.push(cur);
+    return segs;
+  }
+
   // Dark halos under every line for visual separation at crossings
   for (const [lineName, line] of lineEntries) {
     if (lineName === 'S42') continue;
-    const coords = line.stops.map(s => [s[1], s[2]]);
-    L.polyline(coords, {
-      color: '#060810', weight: 13, opacity: 0.6,
-      lineCap: 'round', lineJoin: 'round', interactive: false
-    }).addTo(map);
+    for (const coords of lineSegments(line.stops)) {
+      L.polyline(coords, {
+        color: '#060810', weight: 13, opacity: 0.6,
+        lineCap: 'round', lineJoin: 'round', interactive: false
+      }).addTo(map);
+    }
   }
 
   // Outer glow for the Ringbahn — drawn before the ring line itself
@@ -992,19 +1079,22 @@ function initMap() {
   for (const [lineName, line] of lineEntries) {
     if (lineName === 'S42') continue;
     const isRing = lineName === 'S41';
-    const coords = line.stops.map(s => [s[1], s[2]]);
-    const poly = L.polyline(coords, {
-      color: line.color,
-      weight: isRing ? 8 : 5,
-      opacity: isRing ? 0.97 : 0.87,
-      lineCap: 'round', lineJoin: 'round'
-    }).addTo(map);
-    poly.bindTooltip(lineName, { permanent: false, direction: 'center' });
-    lineLayers.push(poly);
+    for (const coords of lineSegments(line.stops)) {
+      const poly = L.polyline(coords, {
+        color: line.color,
+        weight: isRing ? 8 : 5,
+        opacity: isRing ? 0.97 : 0.87,
+        lineCap: 'round', lineJoin: 'round'
+      }).addTo(map);
+      poly.bindTooltip(lineName, { permanent: false, direction: 'center' });
+      lineLayers.push(poly);
+    }
 
-    // BVG-style line name badge near the midpoint
-    const midIdx = Math.floor(line.stops.length / 2);
-    const [, mlat, mlng] = line.stops[midIdx];
+    // BVG-style line name badge — use first claimable stop near the midpoint
+    const claimableStops = line.stops.filter(s => STATIONS[s[0]]);
+    if (!claimableStops.length) continue;
+    const midIdx = Math.floor(claimableStops.length / 2);
+    const [, mlat, mlng] = claimableStops[midIdx];
     const slotKey = `${mlat.toFixed(2)},${mlng.toFixed(2)}`;
     if (!usedLabelSlots.has(slotKey)) {
       usedLabelSlots.add(slotKey);
@@ -1218,6 +1308,18 @@ function onStationClick(name) {
       return;
     }
     if (!h) return;
+    if (!isClaimable(name)) {
+      showModal({
+        title: "Out of bounds",
+        body: `<div class="card-display hard">
+                 <span class="card-tag">FORBIDDEN</span>
+                 <h2 class="card-title">${name} is outside the Ringbahn.</h2>
+                 <p class="card-body">U-Bahn stations outside the Ringbahn cannot be claimed.</p>
+               </div>`,
+        actions: [{ label: "OK", onClick: closeModal }]
+      });
+      return;
+    }
     if (isAdjacent(h, name)) {
       drawChallenge(name);
     } else {
@@ -1263,16 +1365,25 @@ function onStationClick(name) {
 // HUNTER ACTIONS
 // ─────────────────────────────────────────────────────────────────────
 function nextCurseAt() {
-  if (!state.cursesUsed.length) return state.startMs + 45 * 60_000;
-  return state.cursesUsed[state.cursesUsed.length - 1].at + 45 * 60_000;
+  if (!state.cursesUsed.length) return state.startMs + 20 * 60_000;
+  return state.cursesUsed[state.cursesUsed.length - 1].at + 20 * 60_000;
 }
 function throwCurse() {
+  if (isFreezeActive()) {
+    const left = Math.ceil((20 * 60_000 - nowGame()) / 60_000);
+    showModal({
+      title: "Hunter freeze active",
+      body: `<p class="card-body">Hunters are frozen for the first 20 minutes. ${left} minute(s) remaining.</p>`,
+      actions: [{ label: "OK", onClick: closeModal }]
+    });
+    return;
+  }
   const t = nextCurseAt();
   if (Date.now() < t) {
     const wait = Math.ceil((t - Date.now()) / 60_000);
     showModal({
       title: "Curse cooldown",
-      body: `<p class="card-body">Curses can be thrown every 45 minutes. Next curse available in ${wait} minute(s).</p>`,
+      body: `<p class="card-body">Curses can be thrown every 20 minutes. Next curse available in ${wait} minute(s).</p>`,
       actions: [{ label: "OK", onClick: closeModal }]
     });
     return;
@@ -1294,6 +1405,15 @@ function throwCurse() {
 }
 
 function confirmTag() {
+  if (isFreezeActive()) {
+    const left = Math.ceil((20 * 60_000 - nowGame()) / 60_000);
+    showModal({
+      title: "Hunter freeze active",
+      body: `<p class="card-body">Hunters cannot tag during the first 20 minutes. ${left} minute(s) remaining.</p>`,
+      actions: [{ label: "OK", onClick: closeModal }]
+    });
+    return;
+  }
   showModal({
     title: "Confirm physical tag",
     body: `<div class="card-display hard">
@@ -1461,9 +1581,20 @@ function refreshUI() {
   $("hunter-panel").style.display = state.role === "hunter" ? "" : "none";
   $("role-runner").classList.toggle("active", state.role === "runner");
   $("role-hunter").classList.toggle("active", state.role === "hunter");
-  // Cursor cooldown text
+  // Hunter freeze bar
+  const freezeBar = $("hunter-freeze-bar");
+  if (freezeBar) {
+    if (state.started && isFreezeActive()) {
+      const left = Math.ceil((20 * 60_000 - nowGame()) / 60_000);
+      freezeBar.style.display = "";
+      freezeBar.textContent = `FREEZE — hunters cannot tag or curse for ${left} more min`;
+    } else {
+      freezeBar.style.display = "none";
+    }
+  }
+  // Curse cooldown text
   const cursor = $("curse-cooldown");
-  if (cursor) cursor.textContent = nc <= 0 ? "Available now" : `Next in ${fmtClock(nc)}`;
+  if (cursor) cursor.textContent = isFreezeActive() ? "Freeze active" : (nc <= 0 ? "Available now" : `Next in ${fmtClock(nc)}`);
   refreshMarkers();
   refreshSnakePath();
 }
@@ -1488,9 +1619,10 @@ function tick() {
 // ─────────────────────────────────────────────────────────────────────
 function fillStartOptions() {
   const sel = $("setup-start");
-  sel.innerHTML = STATION_NAMES.map(n => `<option value="${n}">${n}</option>`).join("");
-  // Default to Alexanderplatz if present
-  if (STATIONS["Alexanderplatz"]) sel.value = "Alexanderplatz";
+  const valid = STATION_NAMES.filter(n => isJunction(n) && !isOnRingbahn(n) && isClaimable(n));
+  sel.innerHTML = valid.map(n => `<option value="${n}">${n}</option>`).join("");
+  if (STATIONS["Alexanderplatz"] && valid.includes("Alexanderplatz")) sel.value = "Alexanderplatz";
+  else if (valid.length) sel.value = valid[0];
 }
 
 function showSetup() {
@@ -1524,7 +1656,7 @@ $("role-hunter").onclick = () => { state.role = "hunter"; saveState(); refreshUI
 $("btn-claim").onclick = () => {
   const h = head();
   if (!h) return;
-  const candidates = [...ADJACENCY[h]].filter(s => !isInTail(s));
+  const candidates = [...ADJACENCY[h]].filter(s => !isInTail(s) && isClaimable(s));
   if (candidates.length === 0) {
     showModal({ title: "Boxed in", body: `<p class="card-body">No adjacent stations are open. Use SHED or accept defeat.</p>`, actions: [{ label: "OK", onClick: closeModal }] });
     return;
