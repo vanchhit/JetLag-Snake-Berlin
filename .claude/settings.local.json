@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/vanchhit/Documents/Code/JetLag-Snake-Berlin remote -v)",
+      "Bash(npm run *)"
+    ]
+  }
+}
